@@ -1,0 +1,251 @@
+---
+title: "Weird things that R does"
+author: "Adam Clark"
+date: "5/11/2020"
+output: html_document
+---
+
+R has lots of strange behavior that can make it hard to get into as a programming language. But most of the time, there is method to the madness, and the strange behavior is really driven by a subtle underlying aspect of how R is built. Most of the time. Sometimes, it's just a bug.
+
+In any case, below is a short list of some of these problems that I've put together over the years. I'll try to extend it as I think of additional examples, but please feel free to email me to add more (adam.tclark\@gmail.com).
+
+# Variable types
+
+## Example 1: Integers vs. doubles
+
+In most programming languages, you have to declare the "type" of variables (e.g. "character" or "integer") before you can use them. This let's the computer know what you intend on doing with that variable. R technically does include options for letting you define variable types, though in practice it usually just guesses the type based on your input. Often, it does a pretty good job, but sometimes this can lead to problems.
+
+A common example is that R can get confused about integer values if they result from adding lots of non-integers together. Usually, this isn't a problem. For example, if we try:
+
+```{r}
+x <- (0.5+0.5)
+x == 1
+```
+
+R correctly tells us that 0.5 + 0.5 is the same as 1. But, if we add together lots and lots of small numbers, R sometimes loses count.
+
+```{r}
+x <- 0
+for(i in 1:1000) {
+  x<-x+1/1000
+}
+
+x==1
+```
+
+See? We added 1/1000 together 1000 times, which should equal 1, and yet R doesn't think that this is the case. Stranger still, if we just look at x
+
+```{r}
+x
+```
+
+R just prints the number 1. But somehow, it isn't equal to one.
+
+The problem is that R has decided that x is a "double" (or possibly a "float" - I'm not really sure how R handles these things under the hood). But, what this means is that R knows that it added a bunch of small numbers together, and that the result that it got is pretty darn close to 1, but because it isn't totally sure whether the total is exactly 1, it isn't willing to tell us that x = 1 for sure.
+
+If, however, we force R to turn x into an integer, then the comparison will work. We can do this either with the "round" command or, more directly, with the "as.integer" command.
+
+```{r}
+round(x)==1
+as.integer(x)==1
+```
+
+Beware, though, that the "as.integer" command will coerce a variable into being an integer, whether or not it is - and unlike "round", it does so by dropping the decimals, rather than by rounding to the nearest integer. For example
+
+```{r}
+as.integer(1.9)
+round(1.9)
+```
+
+This general problem about how R treats integers is also a simple way to show the maximum finite computational precision that R uses for its numbers. Computers can't store an infinite number of decimal places -- in R, the limit is about $10^{-16}$. One way to show this is to round x to various numbers of significant digits, and check at what point it reverts back to being an integer. For example, if we round x to 1, 2, or even 10 decimal places, R still "remembers" that x isn't an integer, and so says that it isn't equal to 1. But if we round to 15 or more digits in this example (at least, for my R version and computer), then it "forgets" that x is not an integer.
+
+```{r}
+round(x, digits = 10) == 1
+round(x, digits = 15) == 1
+```
+
+This shows that R's behavior is actually somewhat reasonable, since if we were to add a tiny amount to an integer, we would want R to "remember" that it was no longer an integer, even if the amount is too small for R to express. For example, even though R prints 1 and $1+1^{-10}$ identically, it correctly tells us that the two aren't identical.
+
+```{r}
+1
+1+1e-10
+
+1 == (1+1e-10)
+```
+
+Note that the limit for R's ability to store decimals comes up in lots of places. For example, if we run a regression where we know that the p-value is very close to zero, it will give us the p-value only down to 16 significant digits.
+
+```{r}
+y <- rnorm(1000, mean = 100, sd = 1)
+summary(lm(y~1))
+```
+
+## Data.frames vs. matrices
+
+This problem cost me more time than any other one of R's irrationalities when I was learning how to code. It's pretty common to try to call columns in a data set using the "\$" operator. For example, if we make the following data set
+
+```{r}
+fakedata <- data.frame(a = c(1,2,3), b = c(4,5,6))
+fakedata
+```
+
+We can access each of the columns with just a "\$" and the name of the column.
+
+```{r}
+fakedata$a
+fakedata$b
+```
+
+But how about if we turn this into a matrix? To do so, we can use the "as.matrix" command.
+
+```{r}
+fakematrix <- as.matrix(fakedata)
+fakematrix
+```
+
+This looks pretty much identical. But, if we try to call a column, we get the dreaded "\$ operator is invalid for atomic vectors" error. Note, I need to wrap the call in a "try" command, so that the R Markdown file compiles despite the error.
+
+```{r}
+try(fakematrix$a)
+```
+
+What the heck is an "atomic vector"? Well, the answer isn't terribly well documented anywhere. But, the short answer is that the "\$" operator only works for lists. The original "fakedata" variable is a data.frame, which is a special type of list. For matrices, we need to either call the column number, or enter the name of the column in quote marks.
+
+```{r}
+fakematrix[,1]
+fakematrix[,"a"]
+```
+
+Note, the same methods also work with data.frames. So, while you can use matrix notation to call a data.frame column, you can't use data.frame (or list) notation to call matrix columns.
+
+```{r}
+fakedata[,1]
+fakedata[,"a"]
+```
+
+Note, if we want to call multiple columns, we can use numbers or names in quote marks (though this second option might not work with older versions of R).
+
+```{r}
+fakematrix[,1:2]
+try(fakedata[,c("a", "b")])
+```
+
+One related point about matrices vs. data.frames is that they are treated somewhat differently by the "length" command.
+
+```{r}
+length(fakedata)
+length(fakematrix)
+```
+
+This happens because "fakedata", as a data.frame, is really just a sneaky type of list, where each column is a different variable. This is why we can mix different data types in a data.frame, but not a matrix. And, when we use "length" on a list, R assumes that we want to know the number of elements. In contrast, if we use "length" on a matrix, R assumes that we want to know the total number of values in the matrix. So, if we use the "dim" command instead to get the number of rows and columns, we find
+
+```{r}
+dim(fakedata)
+dim(fakematrix)
+```
+
+that for the data.frame, R is indeed giving us the number of columns when we use the "length" command, whereas for the matrix, R is giving us the number of rows times the number of columns (i.e. the total number of elements).
+
+One last related point. Matrices are only allowed to hold one type of data. This is great for some purposes, e.g. it allows us to run arithmetic on matrices faster than on data.frames in some circumstances. But a down-side is that if we try to mix data types in a matrix, then one of them will win and take the rest of the matrix down with it. For example, if I add a new column with characters to the data.frame
+
+```{r}
+fakedata$c <- c("a", "b", "c")
+fakedata
+
+fakedata$a+fakedata$b
+```
+
+we can still use the original columns as numeric values. But, if we try the same thing with the matrix, we'll get an error.
+
+```{r}
+fakematrix <- cbind(fakematrix, c = c("a", "b", "c"))
+fakematrix
+
+try(fakematrix[,"a"]+fakedata[,"b"])
+```
+
+this no longer works. The issue is that since a matrix can only contain one type of data, adding a character vector forces R to coerce the other two columns into character columns as well. You'll notice that in the call above, both number columns now show up in quote marks.
+
+As a side-note, you'll notice that we needed to write the syntax a bit differently for adding a column to the matrix. While we can just name a new column and add directly to it in a data.frame, for matrices we actually need to create a new matrix in which we shove our data sets together using the "cbind" command.
+
+## Factors
+
+Factors are a special type of character variable in R. In theory, factors are useful for some types of operations, since it tells R to treat things as categories. This also has some nice side-effects - e.g. we can often use factors as though they were numbers if we want to index something.
+
+```{r}
+x <- as.factor(c("a", "a", "a", "b", "b", "c"))
+y <- c(1,2,3)
+y[x]
+```
+
+In this case, R recognizes that I'm using x as an index, sorts the elements in x alphabetically, and then treats those elements as though they were numbers, sorted by alphabetical order.
+
+While this can be helpful under some circumstances, factors in R can also be really nasty to work with. And I'm not the only person who thinks so. Recently, R was updated to remove the default behavior that made it transform all character vectors into factors in the data that it reads in. This is one few the first "breaking" changes in an R update (i.e. a change that has the potential to "break" old code that expects a different behavior), but it seems that the community as a whole hates factors sufficiently for the change to be worth it.
+
+One of the most common issues with factors is that if you accidentally factorize a numeric column, it can be hard to get it back. For example, if we do the following
+
+```{r}
+n <- as.factor(c(5,10,20))
+n
+```
+
+R has now stored the numbers 5 10 and 15 as factors. But, since factors have a weird mix of character and number quantities, these won't behave as expected if we just try to turn them back into numbers.
+
+```{r}
+as.numeric(n)
+```
+
+Rather than giving us back the original values, R has sorted the elements alphabetically (or in this case, numerically), and then transformed them back into integers reflecting the order of each element in the list. This is a really common problem that can mess up analyses - especially if a numeric column is unexpectedly turned into a factor, e.g. by merging a character value into a numeric list.
+
+If we want to get the original values back, we need to be a bit sneaky. The simplest way is usually to first transform the factor into a character vector, and then to turn the character vector into a numeric.
+
+```{r}
+as.character(n)
+as.numeric(as.character(n))
+```
+
+# Indexing
+
+## NA's in indices
+
+NA values behave very strangely in indices. NA officially means "I don't know what this value is" - and so, R treats it very differently from how it treats zero or null values. Because of this unique status, NA can mess up commands in somewhat unexpected ways.
+
+For example, when we try to index a variable by some condition, we can usually do this either with a logical statement, or with the "which" function. So, in the following data set, if we want to select all rows where the "a" columns is greater than 3, we can do either of the following
+
+```{r}
+fakedata <- data.frame(a = c(1, 2, 3, 4, 5), b = c("a", "b", "c", "d", "e"))
+fakedata[fakedata$a>3,]
+fakedata[which(fakedata$a>3),]
+```
+
+Both indices give us identical results. But, the two operations themselves result in quite different values
+
+```{r}
+fakedata$a>3
+which(fakedata$a>3)
+```
+
+Note that the logical statement gives us a list of "TRUE" and "FALSE" values, whereas the "which" command returns a vector of positions for which the condition is met.
+
+Because these two results are structured differently, they are also influenced by NA's differently. For example, if we add a new row to "fakedata" 
+
+```{r}
+fakedata <- rbind(fakedata, data.frame(a = NA, b = "f"))
+fakedata[fakedata$a>3,]
+fakedata[which(fakedata$a>3),]
+```
+
+we suddenly get two different results. This is because, whereas the "which" command only returns indices for which the statement is true, the logical statement will itself return an "NA" when it runs into an NA (since it doesn't know what the value in that position should be, and is therefore unsure of whether or not the condition is met).
+
+```{r}
+fakedata$a>3
+which(fakedata$a>3)
+```
+
+So, the "extra" row that we get when we index by the logical statement isn't actually R's way of trying to (correctly) mimic the "NA" in the last row of the data set. Instead, it is the result of a two-step process. First, the logical statement returns NA. Then, we try to index by a vector of logical values which happens to include an NA. Because R doesn't know which row the NA refers to, it returns NA again for the full set of values in the final row. Especially in bigger data sets, this can lead to a mounting problem, since the more NA's the appear in a logical statement, the more rows full of NA's will be appended to the bottom of the data set that we are trying to work with.
+
+The solution is actually pretty simple. Whenever you use a logical statement in a situation that might include NA's, you can just precede it with a "!is.na" call. For example
+
+```{r}
+fakedata[!is.na(fakedata$a) & fakedata$a>3,]
+```

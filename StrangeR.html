@@ -12,6 +12,7 @@
 
 <meta name="author" content="Adam Clark" />
 
+<meta name="date" content="2020-05-12" />
 
 <title>Weird things that R does</title>
 
@@ -365,17 +366,33 @@ summary {
 
 <h1 class="title toc-ignore">Weird things that R does</h1>
 <h4 class="author">Adam Clark</h4>
-<h4 class="date">5/11/2020</h4>
+<h4 class="date">May 12, 2020</h4>
 
 </div>
 
+<div id="TOC">
+<ul>
+<li><a href="#introduction"><span class="toc-section-number">1</span> Introduction</a></li>
+<li><a href="#variable-types"><span class="toc-section-number">2</span> Variable types</a><ul>
+<li><a href="#integers-vs.doubles"><span class="toc-section-number">2.1</span> Integers vs. doubles</a></li>
+<li><a href="#data.frames-vs.matrices"><span class="toc-section-number">2.2</span> Data.frames vs. matrices</a></li>
+<li><a href="#factors"><span class="toc-section-number">2.3</span> Factors</a></li>
+</ul></li>
+<li><a href="#indexing"><span class="toc-section-number">3</span> Indexing</a><ul>
+<li><a href="#nas-in-indices"><span class="toc-section-number">3.1</span> NA’s in indices</a></li>
+</ul></li>
+</ul>
+</div>
 
+<div id="introduction" class="section level1">
+<h1><span class="header-section-number">1</span> Introduction</h1>
 <p>R has lots of strange behavior that can make it hard to get into as a programming language. But most of the time, there is method to the madness, and the strange behavior is really driven by a subtle underlying aspect of how R is built. Most of the time. Sometimes, it’s just a bug.</p>
 <p>In any case, below is a short list of some of these problems that I’ve put together over the years. I’ll try to extend it as I think of additional examples, but please feel free to email me to add more (adam.tclark@gmail.com).</p>
+</div>
 <div id="variable-types" class="section level1">
-<h1>Variable types</h1>
-<div id="example-1-integers-vs.doubles" class="section level2">
-<h2>Example 1: Integers vs. doubles</h2>
+<h1><span class="header-section-number">2</span> Variable types</h1>
+<div id="integers-vs.doubles" class="section level2">
+<h2><span class="header-section-number">2.1</span> Integers vs. doubles</h2>
 <p>In most programming languages, you have to declare the “type” of variables (e.g. “character” or “integer”) before you can use them. This let’s the computer know what you intend on doing with that variable. R technically does include options for letting you define variable types, though in practice it usually just guesses the type based on your input. Often, it does a pretty good job, but sometimes this can lead to problems.</p>
 <p>A common example is that R can get confused about integer values if they result from adding lots of non-integers together. Usually, this isn’t a problem. For example, if we try:</p>
 <pre class="r"><code>x &lt;- (0.5+0.5)
@@ -425,18 +442,18 @@ summary(lm(y~1))</code></pre>
 ## 
 ## Residuals:
 ##     Min      1Q  Median      3Q     Max 
-## -3.0966 -0.6783  0.0110  0.6455  3.2097 
+## -3.2154 -0.6872  0.0230  0.6644  2.8362 
 ## 
 ## Coefficients:
-##             Estimate Std. Error t value Pr(&gt;|t|)    
-## (Intercept) 99.98354    0.03108    3217   &lt;2e-16 ***
+##              Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)  99.99876    0.03243    3084   &lt;2e-16 ***
 ## ---
 ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ## 
-## Residual standard error: 0.9828 on 999 degrees of freedom</code></pre>
+## Residual standard error: 1.025 on 999 degrees of freedom</code></pre>
 </div>
 <div id="data.frames-vs.matrices" class="section level2">
-<h2>Data.frames vs. matrices</h2>
+<h2><span class="header-section-number">2.2</span> Data.frames vs. matrices</h2>
 <p>This problem cost me more time than any other one of R’s irrationalities when I was learning how to code. It’s pretty common to try to call columns in a data set using the “$” operator. For example, if we make the following data set</p>
 <pre class="r"><code>fakedata &lt;- data.frame(a = c(1,2,3), b = c(4,5,6))
 fakedata</code></pre>
@@ -514,7 +531,7 @@ fakematrix</code></pre>
 <p>As a side-note, you’ll notice that we needed to write the syntax a bit differently for adding a column to the matrix. While we can just name a new column and add directly to it in a data.frame, for matrices we actually need to create a new matrix in which we shove our data sets together using the “cbind” command.</p>
 </div>
 <div id="factors" class="section level2">
-<h2>Factors</h2>
+<h2><span class="header-section-number">2.3</span> Factors</h2>
 <p>Factors are a special type of character variable in R. In theory, factors are useful for some types of operations, since it tells R to treat things as categories. This also has some nice side-effects - e.g. we can often use factors as though they were numbers if we want to index something.</p>
 <pre class="r"><code>x &lt;- as.factor(c(&quot;a&quot;, &quot;a&quot;, &quot;a&quot;, &quot;b&quot;, &quot;b&quot;, &quot;c&quot;))
 y &lt;- c(1,2,3)
@@ -539,9 +556,9 @@ n</code></pre>
 </div>
 </div>
 <div id="indexing" class="section level1">
-<h1>Indexing</h1>
+<h1><span class="header-section-number">3</span> Indexing</h1>
 <div id="nas-in-indices" class="section level2">
-<h2>NA’s in indices</h2>
+<h2><span class="header-section-number">3.1</span> NA’s in indices</h2>
 <p>NA values behave very strangely in indices. NA officially means “I don’t know what this value is” - and so, R treats it very differently from how it treats zero or null values. Because of this unique status, NA can mess up commands in somewhat unexpected ways.</p>
 <p>For example, when we try to index a variable by some condition, we can usually do this either with a logical statement, or with the “which” function. So, in the following data set, if we want to select all rows where the “a” columns is greater than 3, we can do either of the following</p>
 <pre class="r"><code>fakedata &lt;- data.frame(a = c(1, 2, 3, 4, 5), b = c(&quot;a&quot;, &quot;b&quot;, &quot;c&quot;, &quot;d&quot;, &quot;e&quot;))
@@ -561,7 +578,16 @@ fakedata[fakedata$a&gt;3,]</code></pre>
 <p>Note that the logical statement gives us a list of “TRUE” and “FALSE” values, whereas the “which” command returns a vector of positions for which the condition is met.</p>
 <p>Because these two results are structured differently, they are also influenced by NA’s differently. For example, if we add a new row to “fakedata”</p>
 <pre class="r"><code>fakedata &lt;- rbind(fakedata, data.frame(a = NA, b = &quot;f&quot;))
-fakedata[fakedata$a&gt;3,]</code></pre>
+fakedata</code></pre>
+<pre><code>##    a b
+## 1  1 a
+## 2  2 b
+## 3  3 c
+## 4  4 d
+## 5  5 e
+## 6 NA f</code></pre>
+<p>and try to index it again</p>
+<pre class="r"><code>fakedata[fakedata$a&gt;3,]</code></pre>
 <pre><code>##     a    b
 ## 4   4    d
 ## 5   5    e

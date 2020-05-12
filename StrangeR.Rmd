@@ -1,9 +1,15 @@
 ---
 title: "Weird things that R does"
 author: "Adam Clark"
-date: "5/11/2020"
-output: html_document
+date: '`r format(Sys.Date(), "%B %d, %Y")`'
+output:
+  html_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
 ---
+
+# Introduction
 
 R has lots of strange behavior that can make it hard to get into as a programming language. But most of the time, there is method to the madness, and the strange behavior is really driven by a subtle underlying aspect of how R is built. Most of the time. Sometimes, it's just a bug.
 
@@ -11,7 +17,7 @@ In any case, below is a short list of some of these problems that I've put toget
 
 # Variable types
 
-## Example 1: Integers vs. doubles
+## Integers vs. doubles
 
 In most programming languages, you have to declare the "type" of variables (e.g. "character" or "integer") before you can use them. This let's the computer know what you intend on doing with that variable. R technically does include options for letting you define variable types, though in practice it usually just guesses the type based on your input. Often, it does a pretty good job, but sometimes this can lead to problems.
 
@@ -231,6 +237,12 @@ Because these two results are structured differently, they are also influenced b
 
 ```{r}
 fakedata <- rbind(fakedata, data.frame(a = NA, b = "f"))
+fakedata
+```
+
+and try to index it again
+
+```{r}
 fakedata[fakedata$a>3,]
 fakedata[which(fakedata$a>3),]
 ```
